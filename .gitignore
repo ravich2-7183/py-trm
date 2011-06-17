@@ -1,0 +1,9 @@
+*~
+#*#
+*.so
+*.py[oc]
+*.egg-info
+dist
+build
+tube.py
+tube_wrap.c
