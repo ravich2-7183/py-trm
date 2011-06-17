@@ -11,10 +11,9 @@ setuptools.setup(
     py_modules=['lmj.trm', 'lmj.gnuspeech'],
     ext_modules=[setuptools.Extension(
             'lmj._gnuspeech',
-            sources=glob.glob('gnuspeech/Tube/*.c') + ['lmj/gnuspeech.i'],
+            sources=glob.glob('gnuspeech/Tube/*.c') + ['lmj/gnuspeech_wrap.c'],
             include_dirs=['./gnuspeech'],
-            define_macros=[('GNUSTEP', '1')],
-            swig_opts=['-modern', '-I./gnuspeech'])],
+            define_macros=[('GNUSTEP', '1')])],
 
     description='Python bindings for the gnuspeech tube resonance model',
     long_description=open('README.rst').read(),
