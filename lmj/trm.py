@@ -20,6 +20,7 @@
 
 '''A high-level wrapper for the gnuspeech Tube Resonance Model (TRM).'''
 
+import os
 import array
 import logging
 import gnuspeech
@@ -37,38 +38,44 @@ class Parameters(object):
     synthesis.
     '''
 
+    DEFAULTS = dict(
+        file_format=2,
+        sample_rate_hz=44100.,
+        control_rate_hz=10.,
+        volume_db=10.,
+        channels=1,
+        balance=0.,
+        waveform=gnuspeech.PULSE,
+        pulse_rise=40.,
+        pulse_fall_min=16.,
+        pulse_fall_max=32.,
+        breathiness=1.,
+        length_cm=17.5,
+        temperature_degc=30.,
+        loss_factor=0.5,
+        aperture_scale_cm=4.,
+        mouth_coeff_hz=5000.,
+        nose_coeff_hz=5000.,
+        nose_radii_cm=6 * (1.5, ),
+        throat_lowpass_cutoff_hz=1500.,
+        throat_volume_db=5.,
+        modulation=1,
+        noise_crossmix_offset_db=50.)
+
     def __init__(self, **kwargs):
         '''Initialize a set of model parameters for a tube synthesizer.'''
         self._params = gnuspeech.TRMInputParameters()
-        self._defaults = dict(
-            file_format=2,
-            sample_rate_hz=44100.,
-            control_rate_hz=10.,
-            volume_db=10.,
-            channels=1,
-            balance=0.,
-            waveform=gnuspeech.PULSE,
-            pulse_rise=40.,
-            pulse_fall_min=16.,
-            pulse_fall_max=32.,
-            breathiness=1.,
-            length_cm=17.5,
-            temperature_degc=30.,
-            loss_factor=0.5,
-            aperture_scale_cm=4.,
-            mouth_coeff_hz=5000.,
-            nose_coeff_hz=5000.,
-            nose_radii_cm=6 * (1.5, ),
-            throat_lowpass_cutoff_hz=1500.,
-            throat_volume_db=5.,
-            modulation=1,
-            noise_crossmix_offset_db=50.)
-        for attr, default in self._defaults.items():
+        for attr, default in Parameters.DEFAULTS.items():
             setattr(self, attr, kwargs.get(attr, default))
+        extra = set(kwargs) - set(Parameters.DEFAULTS)
+        if extra:
+            logging.debug('%d extra parameters: %s',
+                          len(extra),
+                          ', '.join(sorted(extra)))
 
     def __repr__(self):
         return 'Parameters(\n  %s)' % ',\n  '.join(
-            '%s=%s' % (k, getattr(self, k)) for k in sorted(self._defaults))
+            '%s=%s' % (k, getattr(self, k)) for k in sorted(self.DEFAULTS))
 
     def _set_file_format(self, v): self._params.outputFileFormat = v
     file_format = property(
@@ -180,6 +187,7 @@ class Parameters(object):
     def _set_nose_radii(self, values):
         assert len(values) == gnuspeech.TOTAL_NASAL_SECTIONS - 1
         radii = gnuspeech.new_double_array(gnuspeech.TOTAL_NASAL_SECTIONS)
+        gnuspeech.double_array_setitem(radii, 0, 0.)
         for i, v in enumerate(values):
             gnuspeech.double_array_setitem(radii, i + 1, v)
         self._params.noseRadius = radii
@@ -247,13 +255,13 @@ class TubeModel(object):
         glotVol - glottal volume, dB
         aspVol - aspirate volume, dB
         fricVol - fricative volume, dB
-        fricPos - fricative position, cm from the mouth
+        fricPos - fricative position, cm (from the mouth ?)
         fricCF - fricative filter center frequency, Hz
         fricBW - fricative filter bandwidth, Hz
-        velum - radius of the velar opening, cm
-        radius[0] - radius of vocal tract region 0 (closest to vocal cords)
+        radius[0] - radius of vocal tract region 0 (closest to vocal cords ?)
         ...
-        radius[7] - radius of vocal tract region 7 (closest to lips)
+        radius[7] - radius of vocal tract region 7 (closest to lips ?)
+        velum - amount of velar opening, 0 == closed <-> 1 == open
         '''
         # convert control frames into TRM linked list structure
         data = gnuspeech.TRMData()
@@ -261,10 +269,13 @@ class TubeModel(object):
 
         radii = gnuspeech.new_double_array(gnuspeech.TOTAL_REGIONS)
         for frame in controls:
-            glot_pitch, glot_vol, asp_vol, fric_vol, fric_pos, fric_cf, fric_bw, velum = frame[:8]
-            for i, v in enumerate(frame[8:16]):
+            glot_pitch, glot_vol, asp_vol, fric_vol, fric_pos, fric_cf, fric_bw = frame[:7]
+            for i, v in enumerate(frame[7:15]):
                 gnuspeech.double_array_setitem(radii, i, v)
-            gnuspeech.addInput(data, glot_pitch, glot_vol, asp_vol, fric_vol, fric_pos, fric_cf, fric_bw, radii, velum)
+            velum = frame[15]
+            gnuspeech.addInput(data, glot_pitch, glot_vol, asp_vol,
+                               fric_vol, fric_pos, fric_cf, fric_bw,
+                               radii, velum)
         gnuspeech.delete_double_array(radii)
 
         # run the synthesizer
@@ -282,6 +293,7 @@ class TubeModel(object):
 
 def parse_input_file(filename):
     '''Parse a control file and return the parameter and control data.'''
+    assert os.path.exists(filename), '%s: file does not exist' % filename
     return gnuspeech.parseInputFile(filename)
 
 
