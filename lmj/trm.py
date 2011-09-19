@@ -93,13 +93,13 @@ class Parameters(object):
     control_rate_hz = property(
         lambda self: self._params.controlRate,
         _set_control_rate_hz,
-        doc='control rate (1.0--1000.0 input tables/second), default 10.0')
+        doc='control rate (1.0-1000.0 input tables/second), default 10.0')
 
     def _set_volume_db(self, v): self._params.volume = v
     volume_db = property(
         lambda self: self._params.volume,
         _set_volume_db,
-        doc='master volume (0--60 dB), default 10.0')
+        doc='master volume (0-60 dB), default 10.0')
 
     def _set_channels(self, v): self._params.channels = v
     channels = property(
@@ -123,61 +123,61 @@ class Parameters(object):
     pulse_rise = property(
         lambda self: self._params.tp,
         _set_pulse_rise,
-        doc='glottal pulse rise (5--50 % of GP period), default 40.0')
+        doc='glottal pulse rise (5-50 % of GP period), default 40.0')
 
     def _set_pulse_fall_min(self, v): self._params.tnMin = v
     pulse_fall_min = property(
         lambda self: self._params.tnMin,
         _set_pulse_fall_min,
-        doc='glottal pulse fall minimum (5--50 % of GP period), default 16.0')
+        doc='glottal pulse fall minimum (5-50 % of GP period), default 16.0')
 
     def _set_pulse_fall_max(self, v): self._params.tnMax = v
     pulse_fall_max = property(
         lambda self: self._params.tnMax,
         _set_pulse_fall_max,
-        doc='glottal pulse fall maximum (5--50 % of GP period), default 32.0')
+        doc='glottal pulse fall maximum (5-50 % of GP period), default 32.0')
 
     def _set_breathiness(self, v): self._params.breathiness = v
     breathiness = property(
         lambda self: self._params.breathiness,
         _set_breathiness,
-        doc='glottal source breathiness (0--10 % of GP amplitude), default 1.0')
+        doc='glottal source breathiness (0-10 % of GP amplitude), default 1.0')
 
     def _set_length_cm(self, v): self._params.length = v
     length_cm = property(
         lambda self: self._params.length,
         _set_length_cm,
-        doc='nominal tube length (10--20 cm), default 17.5')
+        doc='nominal tube length (10-20 cm), default 17.5')
 
     def _set_temperature_degc(self, v): self._params.temperature = v
     temperature_degc = property(
         lambda self: self._params.temperature,
         _set_temperature_degc,
-        doc='tube temperature (25--40 C), default 30.0')
+        doc='tube temperature (25-40 C), default 30.0')
 
     def _set_loss_factor(self, v): self._params.lossFactor = v
     loss_factor = property(
         lambda self: self._params.lossFactor,
         _set_loss_factor,
-        doc='junction loss factor (0--5 % unity gain), default 0.5')
+        doc='junction loss factor (0-5 % unity gain), default 0.5')
 
     def _set_aperture_scale_cm(self, v): self._params.apScale = v
     aperture_scale_cm = property(
         lambda self: self._params.apScale,
         _set_aperture_scale_cm,
-        doc='aperture scale radius (3.05--12 cm), default 4.0')
+        doc='aperture scale radius (3.05-12 cm), default 4.0')
 
     def _set_mouth_coeff_hz(self, v): self._params.mouthCoef = v
     mouth_coeff_hz = property(
         lambda self: self._params.mouthCoef,
         _set_mouth_coeff_hz,
-        doc='mouth aperture coefficient (Hz), default 5000.0')
+        doc='mouth aperture coefficient (100-nyquist Hz), default 5000.0')
 
     def _set_nose_coeff_hz(self, v): self._params.noseCoef = v
     nose_coeff_hz = property(
         lambda self: self._params.noseCoef,
         _set_nose_coeff_hz,
-        doc='nose aperture coefficient (Hz), default 5000.0')
+        doc='nose aperture coefficient (100-nyquist Hz), default 5000.0')
 
     def _get_nose_radii(self):
         return tuple(
@@ -196,19 +196,19 @@ class Parameters(object):
     nose_radii_cm = property(
         _get_nose_radii,
         _set_nose_radii,
-        doc='fixed nose radii (6 values from 0--3 cm), default (1.5, ) * 6')
+        doc='fixed nose radii (6 values from 0-3 cm), default (1.5, ) * 6')
 
     def _set_throat_lowpass_cutoff_hz(self, v): self._params.throatCutoff = v
     throat_lowpass_cutoff_hz = property(
         lambda self: self._params.throatCutoff,
         _set_throat_lowpass_cutoff_hz,
-        doc='throat low-pass cutoff (50--nyquist Hz), default 1500.0')
+        doc='throat low-pass cutoff (50-nyquist Hz), default 1500.0')
 
     def _set_throat_volume_db(self, v): self._params.throatVol = v
     throat_volume_db = property(
         lambda self: self._params.throatVol,
         _set_throat_volume_db,
-        doc='throat volume (0--48 dB), default 5.0')
+        doc='throat volume (0-48 dB), default 5.0')
 
     def _set_modulation(self, v): self._params.modulation = v
     modulation = property(
@@ -220,7 +220,7 @@ class Parameters(object):
     noise_crossmix_offset_db = property(
         lambda self: self._params.mixOffset,
         _set_noise_crossmix_offset_db,
-        doc='noise crossmix offset (30--60 dB), default 50.0')
+        doc='noise crossmix offset (30-60 dB), default 50.0')
 
 
 class TubeModel(object):
@@ -251,17 +251,17 @@ class TubeModel(object):
 
         The variables for each frame, in order, are:
 
-        glotPitch - glottal pitch, Hz ?
+        glotPitch - glottal pitch, 0 == middle C
         glotVol - glottal volume, dB
         aspVol - aspirate volume, dB
         fricVol - fricative volume, dB
-        fricPos - fricative position, cm (from the mouth ?)
+        fricPos - fricative position, cm
         fricCF - fricative filter center frequency, Hz
         fricBW - fricative filter bandwidth, Hz
-        radius[0] - radius of vocal tract region 0 (closest to vocal cords ?)
+        radius[0] - radius of vocal tract, region 0, cm
         ...
-        radius[7] - radius of vocal tract region 7 (closest to lips ?)
-        velum - amount of velar opening, 0 == closed <-> 1 == open
+        radius[7] - radius of vocal tract, region 7, cm
+        velum - radius of velar opening, cm
         '''
         # convert control frames into TRM linked list structure
         data = gnuspeech.TRMData()
