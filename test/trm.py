@@ -98,7 +98,7 @@ if __name__ == '__main__':
     w /= abs(w).max()
     play(w, 22050)
 
-    for target in 'music'.split():
+    for target in 'oi music'.split():
         print 'synthesizing %s.gnuspeech' % target
         lmj.trm.synthesize(target + '.gnuspeech', target + '.wav')
         subprocess.call(['aplay', target + '.wav'])
