@@ -7,7 +7,7 @@ setuptools.setup(
     namespace_packages=['lmj'],
     packages=setuptools.find_packages(),
     ext_modules=[setuptools.Extension(
-            'lmj.trm._gnuspeech',
+            '_gnuspeech',
             sources=glob.glob('gnuspeech/Tube/*.c') + ['lmj/trm/gnuspeech_wrap.c'],
             include_dirs=['./gnuspeech'],
             define_macros=[('GNUSTEP', '1')])],
