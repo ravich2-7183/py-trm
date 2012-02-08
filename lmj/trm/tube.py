@@ -56,7 +56,7 @@ class Parameters(object):
         aperture_scale_cm=4.,
         mouth_coeff_hz=5000.,
         nose_coeff_hz=5000.,
-        nose_radii_cm=6 * (1.5, ),
+        nose_radii_cm=5 * (1.5, ),
         throat_lowpass_cutoff_hz=1500.,
         throat_volume_db=5.,
         modulation=1,
