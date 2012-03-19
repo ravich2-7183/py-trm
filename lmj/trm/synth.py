@@ -151,10 +151,17 @@ class Repertoire:
     '''
 
     def __init__(self, xml_file='diphones.mxml'):
+        self.parameters = {}
+        self.symbols = {}
+        self.postures = {}
+
+        if xml_file is not None:
+            self.parse_xml(xml_file)
+
+    def parse_xml(self, xml_file):
         xml = minidom.parse(xml_file)
 
         # PARAMETERS
-        self.parameters = {}
         for n in xml.getElementsByTagName('parameter'):
             p = Parameter(n)
             self.parameters[p.name] = p
@@ -163,7 +170,6 @@ class Repertoire:
             logging.info(self.parameters[p])
 
         # SYMBOLS
-        self.symbols = {}
         for n in xml.getElementsByTagName('symbol'):
             s = Symbol(n)
             self.symbols[s.name] = s
@@ -172,7 +178,6 @@ class Repertoire:
             logging.info(self.symbols[s])
 
         # POSTURES
-        self.postures = {}
         for n in xml.getElementsByTagName('posture'):
             p = Posture(n, self.parameters, self.symbols)
             self.postures[p.symbol] = p

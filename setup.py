@@ -6,6 +6,7 @@ setuptools.setup(
     version='0.1',
     namespace_packages=['lmj'],
     packages=setuptools.find_packages(),
+    data_files=[('lmj/trm', ['gnuspeech/Monet/diphones.mxml'])],
     ext_modules=[setuptools.Extension(
             '_gnuspeech',
             sources=glob.glob('gnuspeech/Tube/*.c') + ['lmj/trm/gnuspeech_wrap.c'],
@@ -14,7 +15,7 @@ setuptools.setup(
     author='Leif Johnson',
     author_email='leif@leifjohnson.net',
     description='Python bindings for the gnuspeech tube resonance model',
-    long_description=open('README.rst').read(),
+    long_description=open('README.md').read(),
     license='MIT',
     keywords=('speech-synthesis '
               'gnuspeech '
