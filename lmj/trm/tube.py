@@ -20,9 +20,11 @@
 
 '''A high-level wrapper for the gnuspeech Tube Resonance Model (TRM).'''
 
-import os
 import array
+import itertools
 import logging
+import os
+
 import gnuspeech
 
 
@@ -242,7 +244,7 @@ class TubeModel(object):
         '''Free up the memory for this tube model.'''
         gnuspeech.TRMTubeModelFree(self._model)
 
-    def synthesize(self, controls):
+    def synthesize(self, *controls):
         '''Synthesize a sound from the given control variables.
 
         Controls is expected to be a list or numpy array containing controls for
@@ -268,7 +270,7 @@ class TubeModel(object):
         data.inputParameters = self._parameters._params
 
         radii = gnuspeech.new_double_array(gnuspeech.TOTAL_REGIONS)
-        for frame in controls:
+        for frame in itertools.chain.from_iterable(controls):
             glot_pitch, glot_vol, asp_vol, fric_vol, fric_pos, fric_cf, fric_bw = frame[:7]
             for i, v in enumerate(frame[7:15]):
                 gnuspeech.double_array_setitem(radii, i, v)
