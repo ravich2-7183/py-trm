@@ -20,14 +20,21 @@
 
 '''A synthesis wrapper for postures and parameters in the TRM.'''
 
+import itertools
 import logging
 import numpy
+import numpy.random as rng
+import os
+import scipy.interpolate
 
 from xml.dom import minidom
 
+import tube
+
 PARAMETERS = ('microInt',
-              'glotVol', 'aspVol', 'fricVol',
-              'fricPos', 'fricCF', 'fricBW',
+              'glotVol',
+              'aspVol',
+              'fricVol', 'fricPos', 'fricCF', 'fricBW',
               'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8',
               'velum')
 
@@ -44,17 +51,21 @@ class Parameter:
     def __hash__(self):
         return hash(self.name)
 
+    def __cmp__(self, other):
+        return cmp(self.name, other.name)
+
     def __str__(self):
         return '<Parameter %s: [%s, %s], %s>' % (
             self.name, self.min, self.max, self.default)
 
-    def __cmp__(self, other):
-        return cmp(self.name, other.name)
-
-    def clip(self, value):
+    def clip(self, value=None):
+        '''Clip a value to the range for this parameter.'''
+        if value is None:
+            value = self.default
         return max(self.min, min(self.max, value))
 
-    def clip_to_default(self, value):
+    def clip_to_default(self, value=None):
+        '''If value is not within range, return the default.'''
         if value is not None and self.min <= value <= self.max:
             return value
         return default
@@ -108,15 +119,23 @@ class Posture:
     def __hash__(self):
         return hash(self.symbol)
 
-    def __str__(self):
-        return '<Posture %s: %s>' % (self.symbol, ', '.join(sorted(self.categories)))
-
     def __cmp__(self, other):
         return cmp(self.symbol, other.symbol)
+
+    def __str__(self):
+        return '<Posture %s: %s>' % (self.symbol, ', '.join(sorted(self.categories)))
 
     @property
     def targets(self):
         return [self.parameter_targets[n] for n in PARAMETERS]
+
+    @property
+    def transition(self):
+        return self.symbol_targets['transition']
+
+    @property
+    def duration(self):
+        return self.symbol_targets['duration']
 
     @property
     def is_vocoid(self):
@@ -126,16 +145,58 @@ class Posture:
     def is_elongated(self):
         return self.symbol.endswith("'")
 
-    def transition(self, following):
-        pts = zip(self.targets, following.targets)
-        frames = self.symbol_targets['transition'] + following.symbol_targets['transition']
-        return numpy.array([numpy.linspace(a, b, frames // 2) for a, b in pts]).T
+    def create_gaussian(self, symbols, parameters, *args, **kwargs):
+        '''Return a gaussian wrapper for this posture.'''
+        return GaussianPosture(self, symbols, parameters, *args, **kwargs)
 
+
+class GaussianPosture(Posture):
+    '''A statistical model that wraps a posture in a multivariate gaussian.'''
+
+    def __init__(self, posture, symbols, parameters,
+                 target_covariance=None,
+                 transition_variance=1.,
+                 duration_variance=1.):
+        '''Initialize this wrapper with a posture and covariance values.'''
+        self.posture = posture
+        self.symbol = posture.symbol
+        self.categories = posture.categories
+
+        self.symbols = symbols
+        self.parameters = parameters
+
+        targets = numpy.array(self.posture.targets)
+        targets.shape += (1, )
+        tcov = target_covariance
+        if tcov is None:
+            tcov = numpy.dot(targets, targets.T)
+        elif isinstance(tcov, (int, float)):
+            tcov = tcov + numpy.zeros((len(targets), ), float)
+        if len(tcov.shape) == 1 and len(tcov) == len(targets):
+            tcov = numpy.diag(tcov)
+
+        self.target_covariance = tcov
+        self.transition_variance = transition_variance
+        self.duration_variance = duration_variance
+
+    @property
+    def targets(self):
+        zs = rng.multivariate_normal(self.posture.targets, self.target_covariance)
+        ps = (self.parameters[p] for p in PARAMETERS)
+        return [param.clip(z) for param, z in zip(ps, zs)]
+
+    @property
+    def transition(self):
+        return self.symbols['transition'].clip(rng.normal(
+            self.posture.transition, self.transition_variance))
+
+    @property
     def duration(self):
-        pts = zip(self.targets, self.targets)
-        frames = self.symbol_targets['duration']
-        return numpy.array([numpy.linspace(a, b, frames) for a, b in pts]).T
+        return self.symbols['duration'].clip(rng.normal(
+            self.posture.duration, self.duration_variance))
 
+
+DIPHONES_MXML = os.path.join(os.path.dirname(__file__), 'diphones.mxml')
 
 class Repertoire:
     '''A group of postures that are defined for the TRM.
@@ -150,12 +211,13 @@ class Repertoire:
     the synthesizer.
     '''
 
-    def __init__(self, xml_file='diphones.mxml'):
-        self.parameters = {}
-        self.symbols = {}
-        self.postures = {}
+    def __init__(self, parameters=None, symbols=None, postures=None,
+                 xml_file=DIPHONES_MXML):
+        self.parameters = parameters or {}
+        self.symbols = symbols or {}
+        self.postures = postures or {}
 
-        if xml_file is not None:
+        if xml_file:
             self.parse_xml(xml_file)
 
     def parse_xml(self, xml_file):
@@ -210,3 +272,101 @@ class Repertoire:
             for p2 in self.iter_vocoid():
                 for p3 in self.iter_non_vocoid():
                     yield p1, p2, p3
+
+    def create_gaussian(self, *args, **kwargs):
+        '''Create a gaussianized version of the postures in this repertoire.'''
+        postures = {}
+        for s, p in self.postures.iteritems():
+            postures[s] = p.create_gaussian(
+                self.symbols, self.parameters, *args, **kwargs)
+        return Repertoire(parameters=self.parameters,
+                          symbols=self.symbols,
+                          postures=postures)
+
+    def interpolate(self, control_rate, *symbols):
+        '''Given a sequence of posture symbols, produces interpolated control frames.
+        '''
+        times = []
+        postures = []
+        for symbol in itertools.chain.from_iterable(symbols):
+            posture = self.postures[symbol]
+            t = 0.
+            if times:
+                t = times[-1] + posture.transition
+            times.append(t)
+            postures.append(posture.targets)
+            times.append(times[-1] + posture.duration)
+            postures.append(posture.targets)
+        frames = int(numpy.ceil(times[-1] * control_rate / 1000.))
+        t = numpy.linspace(0, times[-1], frames)
+        interpolators = [
+            scipy.interpolate.UnivariateSpline(times, p, k=3)
+            for p in numpy.array(postures).T]
+        return numpy.array([s(t) for s in interpolators]).T
+
+
+class Planner(list):
+    '''A planner generates sequences of phone symbols from a repertoire.
+    '''
+
+    def __init__(self, repertoire):
+        self.extend(sorted(repertoire.postures))
+
+    def generate(self, n=7):
+        for _ in range(n):
+            yield self[self.index()]
+
+    def index(self):
+        raise NotImplementedError
+
+
+class Uniform(Planner):
+    '''A uniform planner selects phones randomly.'''
+
+    def index(self):
+        return rng.randint(len(self))
+
+
+class Unigram(Planner):
+    '''A unigram planner samples from a discrete distribution.'''
+
+    def __init__(self, repertoire, pmf):
+        super(Unigram, self).__init__(repertoire)
+
+        pmf = numpy.asarray(pmf)
+        assert len(pmf) == len(self)
+        assert numpy.allclose(pmf.sum(), 1)
+        self.cdf = pmf.cumsum()
+
+    def index(self):
+        return self.cdf.searchsorted(rng.random())
+
+
+class Bigram(Planner):
+    '''A bigram planner samples from a discrete distribution for each phone.'''
+
+    def __init__(self, repertoire, unigrams, bigrams):
+        super(Bigram, self).__init__(repertoire)
+
+        unigrams = numpy.asarray(unigrams)
+        assert len(unigrams) == len(self)
+        assert numpy.allclose(unigrams.sum(), 1)
+        self.unigram_cdf = unigrams.cumsum()
+
+        bigrams = numpy.asarray(bigrams)
+        assert bigrams.shape == (len(self), len(self))
+        assert numpy.allclose(bigrams.sum(axis=1), numpy.ones(len(bigrams)))
+        self.bigram_cdfs = [p.cumsum() for p in bigrams]
+
+        self.idx = None
+
+    def generate(self, *args, **kwargs):
+        self.idx = None
+        return super(Bigram, self).generate(*args, **kwargs)
+
+    def index(self):
+        cdf = self.unigram_cdf
+        if self.idx is not None:
+            cdf = self.bigram_cdfs[self.idx]
+        self.idx = cdf.searchsorted(rng.random())
+        return self.idx
