@@ -238,7 +238,7 @@ class TubeModel(object):
         '''Initialize this tube model with static tube configuration parameters.
         '''
         self._model = gnuspeech.TRMTubeModelCreate(parameters._params)
-        self._parameters = parameters
+        self.parameters = parameters
 
     def __del__(self):
         '''Free up the memory for this tube model.'''
@@ -247,9 +247,9 @@ class TubeModel(object):
     def synthesize(self, *controls):
         '''Synthesize a sound from the given control variables.
 
-        Controls is expected to be a list or numpy array containing controls for
-        each frame of the sound synthesis. If it is a numpy array, frames are
-        read from the 0 axis (the "rows") of the array.
+        Each element of controls is expected to be a list or numpy array
+        containing controls for each frame of the sound synthesis. If it is a
+        numpy array, frames are read from the 0 axis (the "rows") of the array.
 
         The variables for each frame, in order, are:
 
@@ -267,7 +267,7 @@ class TubeModel(object):
         '''
         # convert control frames into TRM linked list structure
         data = gnuspeech.TRMData()
-        data.inputParameters = self._parameters._params
+        data.inputParameters = self.parameters._params
 
         radii = gnuspeech.new_double_array(gnuspeech.TOTAL_REGIONS)
         for frame in itertools.chain.from_iterable(controls):
