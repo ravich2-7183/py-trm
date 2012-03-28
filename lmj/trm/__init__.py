@@ -21,5 +21,5 @@
 '''A Python wrapper for the Tube Resonance Model from gnuspeech.'''
 
 from tube import Parameters, TubeModel, parse_input_file, synthesize
-
-import synth
+from postures import Repertoire
+import babbler
